@@ -37,6 +37,7 @@ PCADimType = Union[int, None, Literal["auto"]]
 def distill_from_model(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
+    instruction: str | None = None,  # NOTE: Added this parameter
     vocabulary: list[str] | None = None,
     device: str | None = None,
     pca_dims: PCADimType = 256,
@@ -55,6 +56,7 @@ def distill_from_model(
 
     :param model: The model to use.
     :param tokenizer: The tokenizer to use.
+    :param instruction: The instruction to use.
     :param vocabulary: The vocabulary to use. If this is None, we use the model's vocabulary.
     :param device: The device to use.
     :param pca_dims: The number of components to use for PCA.
@@ -88,7 +90,7 @@ def distill_from_model(
     tokens: list[str] = []
     if use_subword:
         # Create the subword embeddings.
-        tokens, embeddings = create_output_embeddings_from_model(model=model, tokenizer=tokenizer, device=device)
+        tokens, embeddings = create_output_embeddings_from_model(model=model, tokenizer=tokenizer, device=device, instruction=instruction)  # NOTE: Added this parameter
         new_tokenizer, embeddings = _remove_tokens_and_embeddings(tokenizer, token_remove_pattern, tokens, embeddings)
     else:
         # We need to keep the unk token in the tokenizer.
@@ -115,7 +117,7 @@ def distill_from_model(
                 model=model,
                 tokenizer=tokenizer,
                 tokens=cleaned_vocabulary,
-                device=device,
+                device=device
             )
 
             # If we don't have subword tokens, we still need to create

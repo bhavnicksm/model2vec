@@ -104,6 +104,7 @@ def create_output_embeddings_from_model(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizer,
     device: str,
+    instruction: str | None = None,  # NOTE: Added this parameter
 ) -> tuple[list[str], np.ndarray]:
     """
     Create output embeddings for a bunch of tokens using a pretrained model.
@@ -114,6 +115,7 @@ def create_output_embeddings_from_model(
         This should be a transformers model.
     :param tokenizer: The tokenizer to use.
     :param device: The torch device to use.
+    :param instruction: The instruction to use.
     :return: The tokens and output embeddings.
     """
     model = model.to(device)
@@ -125,17 +127,22 @@ def create_output_embeddings_from_model(
             f"Reported vocab size {tokenizer.vocab_size} is inconsistent with the vocab size {vocab_length}."
         )
 
-    ids = torch.arange(vocab_length)
+    ids = torch.arange(vocab_length).unsqueeze(1)
 
     # Work-around to get the eos and bos token ids without having to go into tokenizer internals.
     dummy_encoding = tokenizer.encode("A")
     bos_token_id, eos_token_id = dummy_encoding[0], dummy_encoding[-1]
 
-    bos = torch.full([len(ids)], fill_value=bos_token_id)
-    eos = torch.full([len(ids)], fill_value=eos_token_id)
+    bos = torch.full([len(ids)], fill_value=bos_token_id).unsqueeze(1)
+    eos = torch.full([len(ids)], fill_value=eos_token_id).unsqueeze(1)
 
-    # NOTE: reversing the bos and eos tokens works better on our benchmarks.
-    stacked = torch.stack([eos, ids, bos], dim=1)
+    if instruction:
+        instruction_tokens = tokenizer.encode(instruction, add_special_tokens=False)
+        inst = torch.tensor(instruction_tokens).unsqueeze(0).repeat(ids.shape[0], 1) 
+        stacked = torch.concatenate([eos, inst, ids, bos], dim=1)
+    else:
+        # NOTE: Reverse the order of the tokens to get better results on our benchmarks.
+        stacked = torch.concatenate([eos, ids, bos], dim=1)
 
     intermediate_weights: list[np.ndarray] = []
     for batch_idx in tqdm(range(0, len(stacked), _DEFAULT_BATCH_SIZE)):
@@ -159,7 +166,7 @@ def create_output_embeddings_from_model(
                 out = out.float()
 
         # Add the output to the intermediate weights
-        intermediate_weights.append(out[:, 1].detach().cpu().numpy())
+        intermediate_weights.append(out[:, -2].detach().cpu().numpy())
 
     # Concatenate the intermediate weights
     out_weights = np.concatenate(intermediate_weights)
