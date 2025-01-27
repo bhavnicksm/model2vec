@@ -201,6 +201,7 @@ def _remove_tokens_and_embeddings(
 def distill(
     model_name: str,
     vocabulary: list[str] | None = None,
+    instruction: str | None = None,
     device: str | None = None,
     pca_dims: PCADimType = 256,
     apply_zipf: bool = True,
@@ -234,6 +235,7 @@ def distill(
     return distill_from_model(
         model=model,
         tokenizer=tokenizer,
+        instruction=instruction,
         vocabulary=vocabulary,
         device=device,
         pca_dims=pca_dims,
