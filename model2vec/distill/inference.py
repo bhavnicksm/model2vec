@@ -139,7 +139,7 @@ def create_output_embeddings_from_model(
     if instruction:
         instruction_tokens = tokenizer.encode(instruction, add_special_tokens=False)
         inst = torch.tensor(instruction_tokens).unsqueeze(0).repeat(ids.shape[0], 1) 
-        stacked = torch.concatenate([eos, inst, ids, bos], dim=1)
+        stacked = torch.concatenate([bos, inst, ids, eos], dim=1)
     else:
         # NOTE: Reverse the order of the tokens to get better results on our benchmarks.
         stacked = torch.concatenate([eos, ids, bos], dim=1)
